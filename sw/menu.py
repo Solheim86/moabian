@@ -21,7 +21,12 @@ from calibrate import calibrate_controller
 from typing import Callable, Any, Union, Optional, List
 from procid import setup_signal_handlers, stop_doppelgänger
 from info_screen import info_screen_controller, info_config_controller
-from controllers import pid_controller, brain_controller, joystick_controller, BrainNotFound
+from controllers import (
+    pid_controller,
+    brain_controller,
+    joystick_controller,
+    BrainNotFound,
+)
 
 LOG = logging.getLogger(__name__)
 
@@ -79,7 +84,7 @@ def build_menu(env, log_on, logfile):
             name="PID",
             closure=pid_controller,
             kwargs={},
-            decorators=[log_csv] if log_on else None
+            decorators=[log_csv] if log_on else None,
         ),
     ]
 
@@ -112,7 +117,7 @@ def build_menu(env, log_on, logfile):
             m = MenuOption(
                 name=menu_name,
                 closure=brain_controller,
-                kwargs={"port": port, "alert_fn":alert_callback},
+                kwargs={"port": port, "alert_fn": alert_callback(env.hat, menu_name)},
                 decorators=[log_csv] if log_on else none,
             )
             middle_menu.append(m)
@@ -145,14 +150,27 @@ def build_menu(env, log_on, logfile):
     ]
     return top_menu + middle_menu + bottom_menu
 
+
 # color list: https://github.com/pallets/click/blob/master/examples/colors/colors.py
 out = partial(click.secho, bold=False, err=True)
 err = partial(click.secho, fg="red", err=True)
 
-def alert_callback(is_error):
-    if is_error:
-        # TODO: change the icon to show an error
-        err("Brain predict error")
+
+def alert_callback(env, name):
+    prev_is_error = False
+
+    def update_icon(is_error: bool):
+        nonlocal prev_is_error
+
+        if is_error != prev_is_error:  # Only update if it changed
+            if is_error is True:
+                env.hat.display_string_icon(name, Icon.X)
+                err("Brain predict error")
+            else:
+                env.hat.display_string_icon(name, Icon.DOT)
+            prev_is_error = is_error
+
+    return update_icon
 
 
 def _handle_debug(ctx, param, debug):
@@ -209,7 +227,7 @@ def _handle_debug(ctx, param, debug):
 @click.option(
     "-r",
     "--reset/--no-reset",
-    help="Reset Moab firmware on start"
+    help="Reset Moab firmware on start",
 )
 @click.option(
     "-v",
@@ -319,7 +337,7 @@ def main_menu(cont, debug, file, hertz, log, reset, verbose):
                             state, detected, buttons = env.step(action)
                     except BrainNotFound:
                         # TODO: show a message on OLED to start docker
-                        print(f'caught BrainNotFound in loop')
+                        print(f"caught BrainNotFound in loop")
 
                     env.hat.go_up()
                 else:
