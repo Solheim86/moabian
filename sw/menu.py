@@ -117,7 +117,7 @@ def build_menu(env, log_on, logfile):
             m = MenuOption(
                 name=menu_name,
                 closure=brain_controller,
-                kwargs={"port": port, "alert_fn": alert_callback(env.hat, menu_name)},
+                kwargs={"port": port, "alert_fn": alert_callback(env, menu_name)},
                 decorators=[log_csv] if log_on else none,
             )
             middle_menu.append(m)
